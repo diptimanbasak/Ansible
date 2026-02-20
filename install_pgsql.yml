@@ -1,0 +1,43 @@
+---
+- name: Install PostgreSQL on Rocky Linux
+  hosts: dbservers
+  become: yes
+  gather_facts: yes
+
+  vars:
+    pg_version: 15
+
+  tasks:
+
+    - name: Check if pgdg repo is already installed
+      stat:
+        path: /etc/yum.repos.d/pgdg-redhat-all.repo
+      register: pgdg_repo
+
+    - name: Enable PostgreSQL YUM repo (only if missing)
+      dnf:
+        name: "https://download.postgresql.org/pub/repos/yum/reporpms/EL-{{ ansible_distribution_major_version }}-x86_64/pgdg-redhat-repo-latest.noarch.rpm"
+        state: present
+      when: not pgdg_repo.stat.exists
+
+    - name: Disable built-in PostgreSQL module (Rocky 8/9)
+      command: dnf -qy module disable postgresql
+      when: ansible_distribution_major_version | int >= 8
+
+    - name: Install PostgreSQL server
+      dnf:
+        name:
+          - "postgresql{{ pg_version }}"
+          - "postgresql{{ pg_version }}-server"
+        state: present
+
+    - name: Initialize PostgreSQL database
+      command: "/usr/pgsql-{{ pg_version }}/bin/postgresql-{{ pg_version }}-setup initdb"
+      args:
+        creates: "/var/lib/pgsql/{{ pg_version }}/data/PG_VERSION"
+
+    - name: Enable and start PostgreSQL service
+      service:
+        name: "postgresql-{{ pg_version }}"
+        state: started
+        enabled: yes

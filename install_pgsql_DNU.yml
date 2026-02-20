@@ -1,0 +1,30 @@
+- name: Install PostgreSQL on Linux
+  hosts: dbservers
+  become: yes
+
+  vars:
+    pgsql_version: "15"
+
+  tasks:
+    - name: Enable PostgreSQL YUM repo
+      yum:
+        name: "https://download.postgresql.org/pub/repos/yum/reporpms/EL-{{ ansible_distribution_major_version }}-x86_64/pgdg-redhat-repo-latest.noarch.rpm"
+        state: present
+
+    - name: Install PostgreSQL Server
+      yum:
+        name: 
+          - postgresql{{ pgsql_version }}
+          - postgresql{{ pgsql_version }}-server
+        state: present
+      
+    - name: Initialize PostgreSQL Database
+      command: "/usr/pgsql-{{ pgsql_version }}/bin/postgresql-{{ pgsql_version }}-setup initdb"
+      args:
+        creates: "/var/lib/pgsql/{{ pgsql_version }}/data/PG_VERSION"
+
+    - name: Ensure PostgreSQL service is running
+      service:
+        name: postgresql
+        state: started
+        enabled: yes  
